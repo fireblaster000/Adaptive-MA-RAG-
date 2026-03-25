@@ -11,3 +11,6 @@ __pycache__/
 adhoc.py
 .envrc
 .python-version
+.ir_datasets_cache/
+data/
+emb_corpus/

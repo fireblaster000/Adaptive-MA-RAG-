@@ -34,10 +34,19 @@ def task_define(state: PlanExecState):
 
         chain = prompt | structured_llm
         question = state["original_question"]
-        plan = f"[{', '.join(state["plan"])}]"
+        plan = f"[{', '.join(state['plan'])}]"
         memory = ""
-        for id, item in enumerate(state["step_output"]):
-            memory += f"Task: {state["plan"][id]}\nQuestion: {state["step_question"][id]["task"]}\nAnswer: {item["answer"]}\nConfident score: {item["rating"]}\n\n"
+        for idx, item in enumerate(state["step_output"]):
+            step = state["plan"][idx]
+            task = state["step_question"][idx]["task"]
+            answer = item["answer"]
+            rating = item["rating"]
+            memory += (
+                f"Task: {step}\n"
+                f"Question: {task}\n"
+                f"Answer: {answer}\n"
+                f"Confident score: {rating}\n\n"
+            )
         full_prompt = prompt.format(
             question = question,
             plan = plan,
@@ -51,11 +60,13 @@ def task_define(state: PlanExecState):
         output = PlanSummaryState(**output.model_dump())
         return {"plan_summary": output, "stop": True}
     else:
-        plan = f"[{', '.join(state["plan"])}]"
+        plan = f"[{', '.join(state['plan'])}]"
         cur_step = state["plan"][len(state["step_output"])]
         memory = ""
-        for id in range(len(state["step_output"])):
-            memory += f"Task: {state["plan"][id]}\nAnswer: {state["step_output"][id]["answer"]}\n\n"
+        for idx in range(len(state["step_output"])):
+            step = state["plan"][idx]
+            answer = state["step_output"][idx]["answer"]
+            memory += f"Task: {step}\nAnswer: {answer}\n\n"
         response = chain.invoke({"plan": plan, "cur_step": cur_step, "memory": memory})
         response = StepTaskState(**response.model_dump())
         return {"step_question": [response]}

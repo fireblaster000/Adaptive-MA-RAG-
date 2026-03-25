@@ -46,8 +46,8 @@ class Retriever:
         vres = faiss.GpuResourcesVector()
         vdev = faiss.Int32Vector()
         for i in range(0, ngpus):
-            vdev.push_back(i)
-            vres.push_back(gpu_resources[gpu_ids[i]])
+            vdev.push_back(gpu_ids[i])
+            vres.push_back(gpu_resources[i])
         self.index = faiss.index_cpu_to_gpu_multiple(vres, vdev, self.index, co)
         self.index_on_gpu = True
     
@@ -84,6 +84,7 @@ class Retriever:
     
 
 if __name__ == "__main__":
-    retrieve = Retriever()
-    os.makedirs("save_embs", exist_ok=True)
-    retrieve.init_index_and_add(root_dir="save_embs/gte-ml-base", dataset_name="dpr100")
+    # Simple sanity check: adjust gpu_ids as needed for your environment
+    retrieve = Retriever(gpu_ids=[0])
+    os.makedirs("emb_corpus/gte-ml-base", exist_ok=True)
+    retrieve.init_index_and_add(root_dir="emb_corpus/gte-ml-base", dataset_name="dpr100")

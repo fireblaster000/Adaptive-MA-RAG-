@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 import numpy as np
 from pathlib import Path
 from time import time
@@ -12,6 +13,11 @@ import transformers
 from accelerate import Accelerator
 from accelerate.logging import get_logger
 from transformers import AutoTokenizer, AutoModel
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from src.data_sampler import CorpusCollator, CorpusDatasetForEmbedding
 import ir_datasets
 import torch.nn.functional as F
@@ -29,7 +35,7 @@ def main():
     doc_c = ir_dataset.docs_count()
     accelerator = Accelerator()
     
-    model_name_or_path = 'hf/gte-multilingual-base'
+    model_name_or_path = "Alibaba-NLP/gte-multilingual-base"
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
     model = AutoModel.from_pretrained(model_name_or_path, trust_remote_code=True)
 
@@ -52,7 +58,7 @@ def main():
     all_embs = []
     for step, batch in enumerate(corpus_dataloader):
         progress_bar_eval.update(1)
-        corpus_ids = batch.pop("corpus_ids")
+        corpus_ids = batch.pop("ids")
         with torch.no_grad():
             outputs = model(**batch["passage"])
         embeddings = outputs.last_hidden_state[:, 0][:dimension]

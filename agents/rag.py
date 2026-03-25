@@ -17,7 +17,7 @@ def build_rag_agent(retriever_tool = None):
     API_KEY = os.getenv("API_KEY")
     def retrieve(state: RagState):
         user_question = state["question"]
-        list_docs, list_doc_ids = retriever_tool(query=user_question)
+        list_docs, list_doc_ids = retriever_tool(user_question)
         state["documents"] = list_docs
         state["doc_ids"] = list_doc_ids
         return state

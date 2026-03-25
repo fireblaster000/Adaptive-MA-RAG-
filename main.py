@@ -28,13 +28,13 @@ def plan_executor_node(state: GraphState):
 if __name__ == "__main__":
     args = parse_args()
     
-    model_name_or_path = 'hf/gte-multilingual-base'
+    model_name_or_path = "Alibaba-NLP/gte-multilingual-base"
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
     model = AutoModel.from_pretrained(model_name_or_path, trust_remote_code=True)
     model = model.to(f"cuda:{args.gpus[0]}")
 
     retrieve = Retriever(gpu_ids=args.gpus)
-    retrieve.init_index_and_add(root_dir="save_embs/gte-ml-base", dataset_name="dpr100")
+    retrieve.init_index_and_add(root_dir="emb_corpus/gte-ml-base", dataset_name="dpr100")
 
     dpr100_corpus = load_corpus()
     retriever_tool = RetrieveTopChunk(tokenizer=tokenizer, embedding_model=model, retrieval_model=retrieve, corpus=dpr100_corpus)

@@ -1,3 +1,9 @@
+import os
+from pathlib import Path
+# Keep ir_datasets cache on scratch/project storage instead of home quota.
+if not os.getenv("IR_DATASETS_HOME"):
+    os.environ["IR_DATASETS_HOME"] = str(Path(__file__).resolve().parents[1] / ".ir_datasets_cache")
+
 import ir_datasets
 import pandas as pd
 import torch
@@ -16,20 +22,31 @@ from typing_extensions import TypedDict, List
 from pydantic import BaseModel, Field
 import operator
 
-def load_dataset(name, split):
+PARENT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_DIR = os.path.dirname(PARENT_DIR)
+DATASET_DIR = os.path.join(PROJECT_DIR, "data", "test_dataset")
+
+
+def load_ir_dataset(name, split):
     """
-    Load queries and corpus.
-    This function only supports ir_datasets
+    Load queries and corpus from ir_datasets.
     """
     nq_dataset = ir_datasets.load(f"{name}/{split}")
     df = pd.DataFrame(nq_dataset.queries_iter())
-    nq_q_dict = {k: {"q": q, "a": a} for k, q, a in zip(df['query_id'].to_list(), df['text'].to_list(), df['answers'].to_list())}
+    nq_q_dict = {
+        k: {"q": q, "a": a}
+        for k, q, a in zip(
+            df["query_id"].to_list(),
+            df["text"].to_list(),
+            df["answers"].to_list(),
+        )
+    }
     corpus = nq_dataset.docs_store()
     df_meta = pd.DataFrame(nq_dataset.qrels_iter())
     return corpus, nq_q_dict, df_meta 
 
 def load_hf_model_causal_lm(dtype=torch.bfloat16, device_map="cuda:1"):
-    model_id = "hf/gemma-2-2b-it"
+    model_id = "google/gemma-2-2b-it"
 
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     model = AutoModelForCausalLM.from_pretrained(
@@ -121,27 +138,27 @@ def load_jsonl(file_path):
 
 def load_dataset(name):
     if name == "nq":
-        file_path = '/scratch2/f0072r1/rs_rl/test_dataset/nq-dev-kilt.jsonl'
+        file_path = os.path.join(DATASET_DIR, 'nq-dev-kilt.jsonl')
         data = load_jsonl(file_path)
         return data
 
     if name == "hotpotqa":
-        file_path = '/scratch2/f0072r1/rs_rl/test_dataset/hotpotqa-dev-kilt.jsonl'
+        file_path = os.path.join(DATASET_DIR, 'hotpotqa-dev-kilt.jsonl')
         data = load_jsonl(file_path)
         return data
     
     if name == "triviaqa":
-        file_path = '/scratch2/f0072r1/rs_rl/test_dataset/triviaqa-dev-kilt.jsonl'
+        file_path = os.path.join(DATASET_DIR, 'triviaqa-dev_id-kilt.jsonl')
         data = load_jsonl(file_path)
         return data
 
     if name == "2wiki":
-        file_path = "/scratch2/f0072r1/rs_rl/test_dataset/2WikiMultihopQA.jsonl"
+        file_path = os.path.join(DATASET_DIR, '2WikiMultihopQA.jsonl')
         data = load_jsonl(file_path)
         return data
 
     if name == "fever":
-        file_path = "/scratch2/f0072r1/rs_rl/test_dataset/fever-dev-kilt.jsonl"
+        file_path = os.path.join(DATASET_DIR, 'fever-dev-kilt.jsonl')
         data = load_jsonl(file_path)
         return data
 

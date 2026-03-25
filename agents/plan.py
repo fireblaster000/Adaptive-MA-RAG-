@@ -16,16 +16,17 @@ def plan_agent(state: GraphState):
     all_mem = []
     for past_exp in state["past_exp"]:
         memory = ""
-        plan = ', '.join(past_exp["plan"])
+        plan = ", ".join(past_exp["plan"])
         memory += f"Plan: [{plan}]\n"
-        memory += f"Status: {past_exp["plan_summary"]["output"]} Score: {past_exp["plan_summary"]["score"]}\n"
+        summary = past_exp["plan_summary"]
+        memory += f"Status: {summary['output']} Score: {summary['score']}\n"
         all_mem.append(memory)
     memory = ""
     if len(all_mem) == 0:
         memory = "empty"
     else:
-        for id in range(len(all_mem)):
-            memory += f"Trial {id}:\n{all_mem[id]}\n"
+        for idx in range(len(all_mem)):
+            memory += f"Trial {idx}:\n{all_mem[idx]}\n"
     
     messages = [
         SystemMessagePromptTemplate.from_template(planing_system_message),
@@ -35,10 +36,6 @@ def plan_agent(state: GraphState):
     llm = ChatOpenAI(model_name=os.getenv("MODEL_NAME"), temperature=0.3, api_key=API_KEY)
     structured_llm = llm.with_structured_output(PlanFormat)
     chain = prompt | structured_llm
-    fprompt = prompt.format(
-        question = original_question,
-        memory = memory
-    )
     output = chain.invoke({
         "question": original_question,
         "memory": memory

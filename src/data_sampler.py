@@ -1,4 +1,5 @@
 import math
+import os
 import torch
 import json
 import os.path
@@ -9,6 +10,10 @@ from dataclasses import dataclass
 from typing import List, Tuple
 from typing import cast, List, Dict, Union, Dict, Optional, Mapping
 import pandas as pd
+# Keep ir_datasets cache on scratch/project storage instead of home quota.
+if not os.getenv("IR_DATASETS_HOME"):
+    os.environ["IR_DATASETS_HOME"] = str((os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) + "/.ir_datasets_cache")
+
 import ir_datasets
 import datasets
 from datasets import load_dataset
