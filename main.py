@@ -20,7 +20,8 @@ def plan_executor_node(state: GraphState):
     input = {
         "original_question": state["original_question"],
         "plan": state["plan"],
-        "stop": False
+        "stop": False,
+        "llm_metrics": [],
     }
     output = plan_executor_agent.invoke(input)
     return {"past_exp": [output]}
@@ -73,12 +74,42 @@ if __name__ == "__main__":
         else:
             question = item["input"]
         inputs = {
-            "original_question": f"{question}?"
+            "original_question": f"{question}?",
+            "llm_metrics": [],
         }
         try:
             output = graph.invoke(inputs)
             print(output)
             print()
+
+            # Aggregate token/latency profiling across all LLM calls for this question.
+            all_metrics = []
+            if isinstance(output.get("llm_metrics"), list):
+                all_metrics.extend(output["llm_metrics"])
+            past_exp = output.get("past_exp", [])
+            if isinstance(past_exp, list):
+                for exp in past_exp:
+                    if isinstance(exp, dict) and isinstance(exp.get("llm_metrics"), list):
+                        all_metrics.extend(exp["llm_metrics"])
+
+            def _sum_numeric(key: str) -> float:
+                s = 0.0
+                for m in all_metrics:
+                    if not isinstance(m, dict):
+                        continue
+                    v = m.get(key)
+                    if isinstance(v, (int, float)):
+                        s += float(v)
+                return s
+
+            output["profile"] = {
+                "llm_calls_count": len(all_metrics),
+                "total_prompt_tokens": _sum_numeric("prompt_tokens"),
+                "total_completion_tokens": _sum_numeric("completion_tokens"),
+                "total_tokens": _sum_numeric("total_tokens"),
+                "total_cost": _sum_numeric("total_cost"),
+                "total_latency_ms": _sum_numeric("latency_ms"),
+            }
 
             with open(save_file, "w") as f:
                 json.dump(output, f)

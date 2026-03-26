@@ -10,6 +10,7 @@ from langchain_core.prompts.chat import ChatPromptTemplate, HumanMessagePromptTe
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 from langgraph.graph import MessagesState, StateGraph, START, END
+from src.llm_profile import profile_llm_call
 
 from dotenv import load_dotenv
 
@@ -36,19 +37,34 @@ def build_plan_executor(retriever_tool = None):
             full_prompt = prompt.format(
                 question=query,
             )
-            response = chain.invoke({"question": query})
+            def _call_aggregate():
+                return chain.invoke({"question": query})
+
+            response, metric = profile_llm_call(_call_aggregate, stage="plan_executor_aggregate")
             response = QAAnswerState(**response.model_dump())
             step_doc_ids = []
             step_notes = []
         else:
             response = rag_agent.invoke({
-                "question": query
+                "question": query,
+                "llm_metrics": [],
             })
             step_doc_ids = [response["doc_ids"]]
             step_notes = [response["notes"]]
+            metric = None
+            rag_metrics = response.get("llm_metrics", [])
             response = response["final_raw_answer"]
     
-        return {"step_output": [response], "step_docs_ids": step_doc_ids, "step_notes": step_notes}
+        if cur_task["type"] == "aggregate":
+            llm_metrics = [metric]
+        else:
+            llm_metrics = rag_metrics
+        return {
+            "step_output": [response],
+            "step_docs_ids": step_doc_ids,
+            "step_notes": step_notes,
+            "llm_metrics": llm_metrics,
+        }
     
     def task_definer_out(state: PlanExecState):
         if state["stop"] == True:

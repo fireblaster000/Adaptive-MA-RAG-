@@ -6,7 +6,8 @@ from src.prompt_template import step_system_message, step_human_message, step_in
 from src.utils import StepTaskFormat, PlanSummaryFormat
 
 from dotenv import load_dotenv
-from langchain.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
+from src.llm_profile import profile_llm_call
 
 load_dotenv()
 
@@ -52,13 +53,16 @@ def task_define(state: PlanExecState):
             plan = plan,
             memory = memory
         )
-        output = chain.invoke({
-            "question": question, 
-            "plan": plan,
-            "memory": memory
-        })
+        def _call_summary():
+            return chain.invoke({
+                "question": question,
+                "plan": plan,
+                "memory": memory
+            })
+
+        output, metric = profile_llm_call(_call_summary, stage="step_definer_summary")
         output = PlanSummaryState(**output.model_dump())
-        return {"plan_summary": output, "stop": True}
+        return {"plan_summary": output, "stop": True, "llm_metrics": [metric]}
     else:
         plan = f"[{', '.join(state['plan'])}]"
         cur_step = state["plan"][len(state["step_output"])]
@@ -67,6 +71,9 @@ def task_define(state: PlanExecState):
             step = state["plan"][idx]
             answer = state["step_output"][idx]["answer"]
             memory += f"Task: {step}\nAnswer: {answer}\n\n"
-        response = chain.invoke({"plan": plan, "cur_step": cur_step, "memory": memory})
+        def _call_step():
+            return chain.invoke({"plan": plan, "cur_step": cur_step, "memory": memory})
+
+        response, metric = profile_llm_call(_call_step, stage="step_definer_step")
         response = StepTaskState(**response.model_dump())
-        return {"step_question": [response]}
+        return {"step_question": [response], "llm_metrics": [metric]}

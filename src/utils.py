@@ -233,6 +233,8 @@ class PlanExecState(TypedDict):
     step_notes: Annotated[List[List[str]], operator.add]
     plan_summary: PlanSummaryState
     stop: bool = False
+    # Profiling metrics from all LLM calls inside the plan executor.
+    llm_metrics: Annotated[List[dict], operator.add]
 
 class RagState(TypedDict):
     """
@@ -243,6 +245,8 @@ class RagState(TypedDict):
     doc_ids: List[str] # List of doc_id
     notes: List[str] # List of notes from retrieved documents
     final_raw_answer: QAAnswerFormat
+    # Profiling metrics from all LLM calls inside the RAG subgraph.
+    llm_metrics: Annotated[List[dict], operator.add]
     
 class GraphState(TypedDict):
     """
@@ -252,6 +256,8 @@ class GraphState(TypedDict):
     plan: List[str] 
     past_exp: Annotated[List[PlanExecState], operator.add]
     final_answer: str
+    # Profiling metrics from all LLM calls in the outer graph (e.g., planning).
+    llm_metrics: Annotated[List[dict], operator.add]
 
 def parse_args():
     parser=argparse.ArgumentParser(description="sample argument parser")

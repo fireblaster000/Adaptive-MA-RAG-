@@ -3,10 +3,11 @@ from src.prompt_template import planing_system_message, planing_human_message, p
 from src.utils import PlanFormat
 
 from dotenv import load_dotenv
-from langchain.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 import os
 
 from langchain_core.prompts.chat import ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemplate
+from src.llm_profile import profile_llm_call
 
 load_dotenv()
 
@@ -36,8 +37,11 @@ def plan_agent(state: GraphState):
     llm = ChatOpenAI(model_name=os.getenv("MODEL_NAME"), temperature=0.3, api_key=API_KEY)
     structured_llm = llm.with_structured_output(PlanFormat)
     chain = prompt | structured_llm
-    output = chain.invoke({
-        "question": original_question,
-        "memory": memory
-    })
-    return {"plan": output.step}
+    def _call():
+        return chain.invoke({
+            "question": original_question,
+            "memory": memory
+        })
+
+    output, metric = profile_llm_call(_call, stage="plan_agent")
+    return {"plan": output.step, "llm_metrics": [metric]}

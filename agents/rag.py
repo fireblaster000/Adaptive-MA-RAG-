@@ -15,12 +15,13 @@ load_dotenv()
 
 def build_rag_agent(retriever_tool = None):
     API_KEY = os.getenv("API_KEY")
+    # LLM call profiling (tokens + latency)
+    from src.llm_profile import profile_llm_call
+
     def retrieve(state: RagState):
         user_question = state["question"]
         list_docs, list_doc_ids = retriever_tool(user_question)
-        state["documents"] = list_docs
-        state["doc_ids"] = list_doc_ids
-        return state
+        return {"documents": list_docs, "doc_ids": list_doc_ids}
 
     def extract(state: RagState):
         # print("--------- EXTRACT -----------")
@@ -35,11 +36,42 @@ def build_rag_agent(retriever_tool = None):
         chain = prompt | llm | StrOutputParser()
         user_question = state['question']
         list_notes = []
+        # Aggregate tokens/latency across all per-document extract calls.
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
+        total_tokens = 0
+        total_cost = 0.0
+        total_latency_ms = 0.0
         for doc in list_docs:        
-            note = chain.invoke({"passage": doc, "question": user_question})
+            def _call_extract():
+                return chain.invoke({"passage": doc, "question": user_question})
+
+            note, metric = profile_llm_call(
+                _call_extract,
+                stage="rag.extract_single",
+            )
             list_notes.append(f"[{note}]")
-        state["notes"] = list_notes
-        return state
+            if isinstance(metric.get("prompt_tokens"), (int, float)):
+                total_prompt_tokens += metric["prompt_tokens"]
+            if isinstance(metric.get("completion_tokens"), (int, float)):
+                total_completion_tokens += metric["completion_tokens"]
+            if isinstance(metric.get("total_tokens"), (int, float)):
+                total_tokens += metric["total_tokens"]
+            if isinstance(metric.get("total_cost"), (int, float)) and metric.get("total_cost") is not None:
+                total_cost += float(metric["total_cost"])
+            if isinstance(metric.get("latency_ms"), (int, float)):
+                total_latency_ms += metric["latency_ms"]
+
+        extract_metric = {
+            "stage": "rag.extract",
+            "num_docs": len(list_docs),
+            "latency_ms": total_latency_ms,
+            "prompt_tokens": total_prompt_tokens if total_prompt_tokens > 0 else None,
+            "completion_tokens": total_completion_tokens if total_completion_tokens > 0 else None,
+            "total_tokens": total_tokens if total_tokens > 0 else None,
+            "total_cost": total_cost if total_cost > 0 else None,
+        }
+        return {"notes": list_notes, "llm_metrics": [extract_metric]}
 
     def generate(state: RagState):
         # print("--------- GENERATE -----------")
@@ -68,10 +100,17 @@ def build_rag_agent(retriever_tool = None):
         rag_chain = prompt | structured_llm
 
         # Run
-        response = rag_chain.invoke({"context": docs, "question": question})
+        def _call_generate():
+            return rag_chain.invoke({"context": docs, "question": question})
+
+        response, metric = profile_llm_call(
+            _call_generate,
+            stage="rag.generate",
+            extra={"topk_docs": len(doc_ids)},
+        )
         response = QAAnswerState(**response.model_dump())
         # print(response)
-        return {"final_raw_answer": response}
+        return {"final_raw_answer": response, "llm_metrics": [metric]}
         # return {"messages": [response]}
     # {"answer": response}
 

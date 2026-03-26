@@ -43,6 +43,8 @@ class Retriever:
         co = faiss.GpuMultipleClonerOptions()
         co.shard = True
         co.usePrecomputed = False
+        # Reduce GPU memory footprint so large DPR indices fit on 24GB GPUs.
+        co.useFloat16 = True
         vres = faiss.GpuResourcesVector()
         vdev = faiss.Int32Vector()
         for i in range(0, ngpus):

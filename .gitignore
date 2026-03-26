@@ -11,6 +11,9 @@ __pycache__/
 adhoc.py
 .envrc
 .python-version
-.ir_datasets_cache/
-data/
-emb_corpus/
+.ir_datasets_cache
+data
+emb_corpus
+logs/
+plan_rag_extract_*/
+MA_RAG_extensions.pdf
